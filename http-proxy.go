@@ -13,24 +13,27 @@ func handle(src net.Conn) {
  RPORT := os.Args[2]
 
  dst,err := net.Dial("tcp",RHOST+":"+RPORT)
+
+ defer dst.Close()
+
  if err != nil {
   log.Fatalln("Unable to connect to our unreachable host")
  }
  
- defer dst.Close()
 
  // io.Copy as goroutine because it can blocking
  // Copy our source's output to the destination
  go func() { 
    if _,err = io.Copy(dst,src); err != nil {
-    log.Fatalln(err)
+    log.Println(err)
    }
  }()
 
  // Copy our destination's output back to our source
  if _,err = io.Copy(src,dst); err != nil {
-  log.Fatalln(err)
+  log.Println(err)
  }
+
 }
 
 
@@ -55,5 +58,4 @@ func main() {
   }
   go handle(conn)
  }
-
 }

@@ -9,8 +9,8 @@ import (
 )
 
 // Change the host name and port
-const RHOST = "localhost"
-const RPORT = 8001
+const RHOST = "192.168.187.230"
+const RPORT = 8000
 
 func handle(conn net.Conn) {
  defer conn.Close()

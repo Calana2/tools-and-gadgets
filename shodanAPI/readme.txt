@@ -7,5 +7,5 @@ Run:
 go run cmd/shodan/main.go [search_term]
 
 For free, without configurations, you can use InternetDB API: 
-go run cmd/shodan/main/go [search_term]
+go run cmd/idb/main.go [search_term]
 
