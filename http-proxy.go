@@ -1,10 +1,11 @@
-package main 
+package main
 
 import (
- "log"
- "net"
- "os"
- "io"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"os"
 )
 
 func handle(src net.Conn) {
@@ -40,7 +41,7 @@ func handle(src net.Conn) {
 func main() {
 
  if len(os.Args) != 3 {
-  log.Fatalln("Usage: http-proxy RHOST RPORT")
+  fmt.Println("Usage: http-proxy RHOST RPORT")
   return
  }
 

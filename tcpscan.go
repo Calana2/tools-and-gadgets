@@ -1,3 +1,5 @@
+// Go-tcp-port-scanner
+
 package main
 
 import (
