@@ -10,7 +10,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatalln("Usage: idbsearch searchterm")
+		log.Fatalln("Usage: go run main.go searchterm")
 	}
 
   domain := os.Args[1]

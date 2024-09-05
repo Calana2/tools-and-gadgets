@@ -10,7 +10,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatalln("Usage: shodan searchterm")
+    log.Fatalln("Usage: go run main.go searchterm")
 	}
 
 	err := godotenv.Load()
