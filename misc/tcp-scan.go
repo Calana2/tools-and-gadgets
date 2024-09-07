@@ -29,8 +29,8 @@ var portFlag = flag.String("p","nil", "port number, port range")
 
   func main() {
 
-  primero := 1
-  ultimo := 1024
+  first := 1
+  last := 1024
 
 	flag.Parse()
 
@@ -43,16 +43,16 @@ var portFlag = flag.String("p","nil", "port number, port range")
     // a single port
     match,_ := regexp.MatchString("^\\d+$",*portFlag)
     if match {
-     primero,_ = strconv.Atoi(*portFlag) 
-     ultimo = primero
+     first,_ = strconv.Atoi(*portFlag) 
+     last = first
     // a port range
     } else if match,_ := regexp.MatchString("^\\d+-\\d+$",*portFlag); match {
      s := strings.Split(*portFlag,"-")
      izq,_ := strconv.Atoi(s[0])
      der,_ := strconv.Atoi(s[1])
-     primero, ultimo = izq, der 
+     first, last = izq, der 
      if izq > der { 
-      primero, ultimo = ultimo, primero
+      first, last = last, first
      }
     // incorrect format
     } else {
@@ -74,12 +74,12 @@ var portFlag = flag.String("p","nil", "port number, port range")
 			}
 
 			go func() {
-				for i := primero; i <= ultimo; i++ {
+				for i := first; i <= last; i++ {
 					ports <- i
 				}
 			}()
 
-			for i := 0; i < ultimo - primero + 1; i++ {
+			for i := 0; i < last - first + 1; i++ {
 				port := <-results
 				if port != 0 {
 					openPorts = append(openPorts, port)
