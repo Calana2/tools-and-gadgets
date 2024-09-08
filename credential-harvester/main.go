@@ -9,13 +9,15 @@ import (
   "github.com/gorilla/mux"
 )
 
-const PORT = ":443"
+const PORT = ":80"
 
 func login(w http.ResponseWriter, r *http.Request) {
  logrus.WithFields(logrus.Fields{
   "time": time.Now().String(),
+  // - Change this with the names of the form values that you'll use
   "username": r.FormValue("_user"),
   "password": r.FormValue("_pass"),
+  // ---------------------------------------------------------------
   "user-agent": r.UserAgent(),
   "ip_address": r.RemoteAddr, 
  }).Info("login attempt")

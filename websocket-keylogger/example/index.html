@@ -1,0 +1,19 @@
+<!-- Vulnerable site example 
+     Serve with ` python3 -m http.server 80 `
+     NodeJs, Apache, Nginx, etc ...
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+</head>
+<body>
+<script src='http://localhost:8080/k.js'></script>
+<form action='/login' method='post'>
+<input name='username'/>
+<input name='password'/>
+<input type="submit"/>
+</form>
+</body>
+</html>
