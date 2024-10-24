@@ -1,5 +1,4 @@
 // Go-netcat-implementation
-
 package main
 
 import (
@@ -14,22 +13,36 @@ import (
 	"time"
 )
 
+const HELP_STRING="Usage: netrat -l -p [RPORT]\n       netrat -p [RPORT] [RHOST]\n"
+
 func main() {
 	// Setting up flags
 	listen := flag.Bool("l", false, "Listen mode")
-	RPORT := flag.Int("p", 8000, "-p [PORT]")
+	RPORT := flag.Int("p", 0, "-p [PORT]")
 	flag.Parse()
-	RRHOST := flag.Arg(0)
+  RHOST := flag.Arg(0)
 
 	// Usage
 	if len(flag.Args()) < 1 && !(*listen) {
-		fmt.Println("Usage: gors -l -p [RPORT]")
-		fmt.Println("       gors [RHOST] -p [RPORT]")
+    fmt.Print(HELP_STRING)
 		return
 	}
 
+  // Port must be specified when connecting as a client
+  if *RPORT == 0 && !(*listen) {
+    fmt.Println("Port must be specified with -p")
+		fmt.Print(HELP_STRING)
+    return
+  }
+
+
+
 	// Functionality
 	if *listen {
+    // Default port at listening 
+    if *RPORT == 0 { 
+     *RPORT = 8000
+    }
 		reader := bufio.NewReader(os.Stdin)
 		// Setting up listener
 		listener, err := net.Listen("tcp", ":"+strconv.Itoa(*RPORT))
@@ -46,16 +59,19 @@ func main() {
 			return
 		}
 		handleConn_AsServer(conn, reader)
+
 	} else {
 		// Setting up connection
-		address := RRHOST + ":" + strconv.Itoa(*RPORT)
+		address := RHOST + ":" + strconv.Itoa(*RPORT)
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
 			fmt.Println("Error connecting to the host")
+      fmt.Println(RHOST)
+      fmt.Println(*RPORT)
 			return
 		}
 		// Handle connection
-		fmt.Printf("Connected to %s:%d\n", RRHOST, *RPORT)
+		fmt.Printf("Connected to %s:%d\n", RHOST, *RPORT)
 		handleConn(conn)
 	}
 	// Error handling
