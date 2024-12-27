@@ -72,7 +72,6 @@ var threadFlag = flag.Int("t",100, "number of threads")
 			dir := flag.Arg(i)
 
 			for i := 0; i < cap(ports); i++ {
-        fmt.Println(i)
 				go worker(ports, results, dir)
 			}
 
