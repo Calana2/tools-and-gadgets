@@ -26,16 +26,18 @@ func worker(ports chan int, results chan int, dir string) {
 }
 
 var portFlag = flag.String("p","nil", "port number, port range")
+var threadFlag = flag.Int("t",100, "number of threads")
 
   func main() {
 
+  // default port range
   first := 1
   last := 1024
 
 	flag.Parse()
 
 	if flag.NArg() == 0 {
-		fmt.Println("Usage: tcpscan [-p PORT] hosts")
+		fmt.Println("Usage: tcpscan [-p PORT] [-t threads] hosts")
 		return
 	}
 
@@ -46,30 +48,31 @@ var portFlag = flag.String("p","nil", "port number, port range")
      first,_ = strconv.Atoi(*portFlag) 
      last = first
     // a port range
-    } else if match,_ := regexp.MatchString("^\\d+-\\d+$",*portFlag); match {
-     s := strings.Split(*portFlag,"-")
+  } else if match,_ := regexp.MatchString("^\\d+:\\d+$",*portFlag); match {
+     s := strings.Split(*portFlag,":")
      izq,_ := strconv.Atoi(s[0])
      der,_ := strconv.Atoi(s[1])
      first, last = izq, der 
+     // fix 
      if izq > der { 
       first, last = last, first
      }
     // incorrect format
     } else {
-     fmt.Println("Incorrect port format, please specify a single port or a range. Example: -p 20-80") 
+      fmt.Println("Incorrect port format, please specify a single port or a range. Example: -p 20:80") 
      return
     }
   }
 
 
-		for i := 0; i < flag.NArg(); i++ {
-
-			ports := make(chan int, 100)
+ 		for i := 0; i < flag.NArg(); i++ {
+			ports := make(chan int, *threadFlag)
 			results := make(chan int)
 			var openPorts []int
 			dir := flag.Arg(i)
 
 			for i := 0; i < cap(ports); i++ {
+        fmt.Println(i)
 				go worker(ports, results, dir)
 			}
 

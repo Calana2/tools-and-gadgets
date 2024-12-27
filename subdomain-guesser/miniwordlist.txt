@@ -1,0 +1,16 @@
+ftp
+smb
+www
+ajax
+buy
+open
+private
+wallet
+news
+ssh
+admin
+xmas
+mirror
+mail
+smtp
+webmail

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const HELP_STRING="Usage: netrat -l -p [RPORT]\n       netrat -p [RPORT] [RHOST]\n"
+const HELP_STRING="Usage: tinync -l -p [RPORT]\n       tinync -p [RPORT] [RHOST]\n"
 
 func main() {
 	// Setting up flags
@@ -77,8 +77,8 @@ func main() {
 	// Error handling
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Usage: gors -l -p [RPORT]")
-			fmt.Println("       gors -p [RPORT] [RHOST]")
+			fmt.Println("Usage: tinync -l -p [RPORT]")
+			fmt.Println("       tinync -p [RPORT] [RHOST]")
 		}
 	}()
 } // main
