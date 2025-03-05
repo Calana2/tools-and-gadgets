@@ -335,7 +335,6 @@ func handleTelnetConnection(conn net.Conn, credentials *Credentials, validCreden
 						fmt.Println("Error al escribir WONT:", err)
 						return ERROR
 					}
-
 				}
 
 			case byte(WONT), byte(DONT):

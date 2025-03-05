@@ -1,4 +1,4 @@
-Module for brute-force attacks 
+Module for brute-force attacks, not implemented yet, but it could be useful
 
 Example of usage
 
