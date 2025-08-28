@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-''' Symbol-to-Stack Encoder (Null-Free) (NASM sintaxis)'''
+''' Symbol-to-Stack Encoder (Null-Free) (NASM syntax)'''
 
 import sys
 import textwrap
